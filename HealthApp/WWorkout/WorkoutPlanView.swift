@@ -90,7 +90,7 @@ struct WorkoutPlanView: View {
         // Debug: Log selectedDays and URL
         print("Generating workout plan for \(selectedDays) days")
         
-        guard let url = URL(string: "https://8174-219-74-229-42.ngrok-free.app/workouts/generate?days=\(selectedDays)") else {
+        guard let url = URL(string: "https://0b06-203-126-140-129.ngrok-free.app/workouts/generate?days=\(selectedDays)") else {
             print("Invalid URL")
             errorMessage = "Invalid URL"
             return

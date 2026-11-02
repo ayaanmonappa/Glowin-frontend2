@@ -162,9 +162,8 @@ struct OpeningPage: View {
                         title: Text(""),
                         message: Text(errorMessage),
                         dismissButton: .default(Text("OK")) {
-                            // Navigate to the login page if the registration was successful.
+                            // Only navigate if registration was successful
                             if errorMessage.contains("Registration successful") {
-                                print("Registration successful, navigating to login page.")
                                 isSubmit = true
                             }
                         }
@@ -273,53 +272,56 @@ func checkEmailAvailability() {
     
 
  func registerUser() {
-    guard let ageInt = Int(age) else {
-        errorMessage = "Invalid age"
-        showAlert = true
-        return
-    }
-    
-    let user = User(username: username, email: email, password: password, gender: gender, age: ageInt)
-    guard let url = URL(string: constants.baseURL + Endpoints.users + "/create") else {
-        errorMessage = "Invalid URL."
-        showAlert = true
-        return
-    }
+     guard let ageInt = Int(age) else {
+         errorMessage = "Invalid age"
+         showAlert = true
+         return
+     }
+     
+     let user = User(username: username, email: email, password: password, gender: gender, age: ageInt)
+     guard let url = URL(string: constants.baseURL + Endpoints.users + "/create") else {
+         errorMessage = "Invalid URL."
+         showAlert = true
+         return
+     }
 
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    do {
-        request.httpBody = try JSONEncoder().encode(user)
-    } catch {
-        errorMessage = "Failed to encode user data."
-        showAlert = true
-        return
-    }
+     var request = URLRequest(url: url)
+     request.httpMethod = "POST"
+     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+     do {
+         request.httpBody = try JSONEncoder().encode(user)
+     } catch {
+         errorMessage = "Failed to encode user data."
+         showAlert = true
+         return
+     }
 
-    URLSession.shared.dataTask(with: request) { data, response, error in
-        if let error = error {
-            DispatchQueue.main.async {
-                errorMessage = "Error registering user: \(error.localizedDescription)"
-                showAlert = true
-            }
-            return
-        }
+     URLSession.shared.dataTask(with: request) { data, response, error in
+         if let error = error {
+             DispatchQueue.main.async {
+                 errorMessage = "Error registering user: \(error.localizedDescription)"
+                 showAlert = true
+             }
+             return
+         }
 
-        if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
-            DispatchQueue.main.async {
-                errorMessage = "Error: Received HTTP \(httpResponse.statusCode)"
-                showAlert = true
-            }
-            return
-        }
+         if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+             DispatchQueue.main.async {
+                 errorMessage = "Error: Received HTTP \(httpResponse.statusCode)"
+                 showAlert = true
+             }
+             return
+         }
 
-        DispatchQueue.main.async {
-            errorMessage = "Registration successful! Please check your email to verify your account."
-            showAlert = true
-        }
-    }.resume()
-}
+         // Navigate to the login page on successful registration
+         DispatchQueue.main.async {
+             errorMessage = "Registration successful"
+             isSubmit = true
+             print("Navigating to login page: \(isSubmit)")
+         }
+     }.resume()
+ }
+
 
 }
 
