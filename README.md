@@ -44,4 +44,4 @@ HealthApp/
 
 1. Start the backend by following the steps in [Glowin-Backend](https://github.com/ayaanmonappa/Glowin-Backend#running-it-locally).
 2. Run `ngrok http 8080` and paste the forwarding URL into `baseURL` in `HealthApp/Utilities/constants.swift`.
-3. Open the project in Xcode and press Run to launch it in the simulator.
+3. In Xcode, create a new iOS App project (SwiftUI), drag the `HealthApp` folder into it, and press Run to launch it in the simulator.
