@@ -177,9 +177,9 @@ struct HomePage: View {
                     }
 
                     // Sign Out Button
+                    // Sign Out Button
                     Button(action: {
-                        UserDefaults.standard.removeObject(forKey: "userToken")
-                        isShowingLogin = true
+                        performSignOut()
                     }) {
                         Text("Sign Out")
                             .font(.headline)
@@ -190,6 +190,7 @@ struct HomePage: View {
                             .cornerRadius(10)
                     }
                     .padding(.top, 10)
+
                 }
                 .padding()
             }
@@ -343,6 +344,58 @@ struct HomePage: View {
             }
         }.resume()
     }
+    private func performSignOut() {
+        // Remove user token
+        UserDefaults.standard.removeObject(forKey: "userToken")
+        
+        // Clear cached data
+        clearRecipeCache()
+        clearWorkoutCache()
+        
+        // Reset state variables
+        selectedGoal = nil
+        recommendedGoals.removeAll()
+        measurements.removeAll()
+        errorMessage = nil
+        
+        // Navigate to login page
+        isShowingLogin = true
+        
+        print("User signed out. Cache cleared, and navigating to login screen.")
+    }
+    private func clearRecipeCache() {
+        let fileManager = FileManager.default
+        let cacheURL = getCachedRecipesURL()
+        
+        if fileManager.fileExists(atPath: cacheURL.path) {
+            do {
+                try fileManager.removeItem(at: cacheURL)
+                print("Recipe cache cleared.")
+            } catch {
+                print("Failed to clear recipe cache: \(error)")
+            }
+        } else {
+            print("No recipe cache to clear.")
+        }
+    }
+
+    // Helper: Get the cache URL for recipes
+    private func getCachedRecipesURL() -> URL {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documentsURL.appendingPathComponent("cachedRecipes.json")
+    }
+    private func clearWorkoutCache() {
+        let defaults = UserDefaults.standard
+        for day in 3...4 {  // Assuming 3-day and 4-day splits
+            let cacheKey = "workoutPlan-\(day)"
+            if defaults.object(forKey: cacheKey) != nil {
+                defaults.removeObject(forKey: cacheKey)
+                print("Workout plan for \(day)-day split cleared.")
+            }
+        }
+    }
+
+    
 }
 
 

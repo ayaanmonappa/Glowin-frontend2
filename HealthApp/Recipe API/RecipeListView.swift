@@ -1,15 +1,11 @@
 import SwiftUI
-import UserNotifications
+
 
 struct RecipeListView: View {
     @State private var allRecipes: [Recipe] = []
     @State private var filteredRecipes: [Recipe] = []
     @State private var searchQuery: String = ""
     @State private var isLoading: Bool = false
-    @State private var fetchingInProgress: Bool = false
-    @AppStorage("showCompletionMessage") private var showCompletionMessage: Bool = false
-    @State private var notificationPermissionGranted: Bool = false  // To track notification permissions
-    @State private var timer: Timer?  // Timer to poll for status
     @State private var errorMessage: String = ""
 
     var body: some View {
@@ -23,11 +19,7 @@ struct RecipeListView: View {
             .cornerRadius(8)
             .disabled(isLoading)
 
-            if showCompletionMessage {
-                Text("You'll be notified when the fetching is complete.")
-                    .padding()
-                    .font(.footnote)
-            }
+            
 
             TextField("Search Recipes", text: $searchQuery)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -80,20 +72,20 @@ struct RecipeListView: View {
         .padding()
         .navigationTitle("Recipes")
         .alert(isPresented: .constant(!errorMessage.isEmpty)) {
-                    Alert(
-                        title: Text("Error"),
-                        message: Text(errorMessage),
-                        dismissButton: .default(Text("OK")) {
-                            errorMessage = ""  // Clear error after dismissing
-                        }
-                    )
+            Alert(
+                title: Text("Error"),
+                message: Text(errorMessage),
+                dismissButton: .default(Text("OK")) {
+                    errorMessage = ""
                 }
+            )
+        }
         .onAppear {
             loadCachedRecipes()
-            checkNotificationPermissions()
-            startBackgroundFetch()  // Start background fetch process when the view appears
         }
     }
+
+    
 
     // Starts fetching recipes and clears cache
     func startRecipeFetching() {
@@ -114,115 +106,27 @@ struct RecipeListView: View {
                 // Start the fetching process if checks pass
                 DispatchQueue.main.async {
                     isLoading = true
-                    showCompletionMessage = true  // Show completion message only after button is pressed
                     clearCachedRecipes()  // Clear any cached recipes
                 }
 
                 let recipeService = RecipeService()
-                recipeService.startFetching { result in
-                    DispatchQueue.main.async {
-                        isLoading = false
-                        switch result {
-                        case .success:
-                            print("Recipe fetching process started successfully.")
-                            fetchingInProgress = true
-                            startPollingForStatus()  // Start polling for status updates
-                        case .failure(let error):
-                            print("Failed to start fetching recipes: \(error.localizedDescription)")
+                                recipeService.fetchRecipes { result in
+                                    DispatchQueue.main.async {
+                                        isLoading = false
+                                        switch result {
+                                        case .success(let recipes):
+                                            allRecipes = recipes
+                                            filterRecipes()
+                                            cacheRecipes(recipes)
+                                        case .failure(let error):
+                                            errorMessage = "Failed to fetch recipes: \(error.localizedDescription)"
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                }
-            }
-        }
-    }
 
-
-    // Poll for updates
-    func startPollingForStatus() {
-        timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
-            pollForUpdates()
-        }
-    }
-
-    // Polls for status updates from the backend
-  func pollForUpdates() {
-        let recipeService = RecipeService()
-        recipeService.pollForStatus { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let recipes):
-                    if !recipes.isEmpty {
-                        allRecipes.append(contentsOf: recipes)
-                        filterRecipes()  // Filter recipes based on search
-                        cacheRecipes(allRecipes)  // Cache recipes
-                        
-                        // Notify immediately after caching
-                        notifyUser(message: "Your recipes are ready!")
-                        
-                        fetchingInProgress = false  // Stop the fetching UI
-                        timer?.invalidate()  // Stop polling
-                        showCompletionMessage = false  // Reset the completion message after polling completes
-                    }
-                case .failure(let error):
-                    print("Failed to poll for updates: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-
-
-    // Check and request notification permissions
-    func checkNotificationPermissions() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                if settings.authorizationStatus == .authorized {
-                    notificationPermissionGranted = true
-                } else {
-                    requestNotificationPermission()
-                }
-            }
-        }
-    }
-
-    func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            DispatchQueue.main.async {
-                notificationPermissionGranted = granted
-                if granted {
-                    print("Notification permission granted.")
-                } else {
-                    print("Notification permission denied: \(String(describing: error?.localizedDescription))")
-                }
-            }
-        }
-    }
-
-    // Start background fetch process
-    func startBackgroundFetch() {
-        let backgroundService = BackgroundFetchService()
-        backgroundService.scheduleRecipeFetch()  // Correct method name
-    }
-
-    // Notify the user via local notification
-    func notifyUser(message: String) {
-        if notificationPermissionGranted {
-            let content = UNMutableNotificationContent()
-            content.title = "Recipe Fetch"
-            content.body = message
-            content.sound = UNNotificationSound.default
-
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
-
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error = error {
-                    print("Failed to send notification: \(error)")
-                } else {
-                    print("Notification scheduled: \(message)")
-                }
-            }
-        }
-    }
 
     // Filters the recipes based on the search query
     func filterRecipes() {
